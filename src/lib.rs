@@ -9,14 +9,7 @@ async fn main(req: Request, env: Env, _: Context) -> Result<Response> {
     let user_id = env.var("USER_ID")?.to_string();
     let user_id = parse_user_id(&user_id);
 
-    // get proxy ip list
-    let proxy_ip = env.var("PROXY_IP")?.to_string();
-    let proxy_ip = proxy_ip
-        .split_ascii_whitespace()
-        .filter(|s| !s.is_empty())
-        .map(|s| s.to_string())
-        .collect::<Vec<String>>();
-
+    
     // better disguising;
     let fallback_site = env
         .var("FALLBACK_SITE")
@@ -28,13 +21,22 @@ async fn main(req: Request, env: Env, _: Context) -> Result<Response> {
         .map(|up| up != *"websocket")
         .unwrap_or(true);
 
-    // show uri
-    let show_uri = env.var("SHOW_URI")?.to_string().parse().unwrap_or(false);
     let request_path = req.path().to_string();
     let uuid_str = env.var("USER_ID")?.to_string();
     let host_str = req.url()?.host_str().unwrap().to_string();
+    
+    // get proxy ip
+    let proxy_ip = request_path.replace("/", "");
+    let proxy_ip = proxy_ip
+        .split_ascii_whitespace()
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string())
+        .collect::<Vec<String>>();
 
-    if should_fallback && show_uri && request_path.contains(uuid_str.as_str()) {
+    if should_fallback && !fallback_site.is_empty() {
+        let req = Fetch::Url(Url::parse(&fallback_site)?);
+        return req.send().await;
+    } else if should_fallback {
         let vless_uri = format!(
             "vless://{uuid}@{host}:443?encryption=none&security=tls&sni={host}&fp=chrome&type=ws&host={host}&path=ws#workers-tunnel",
             uuid = uuid_str,
@@ -43,10 +45,6 @@ async fn main(req: Request, env: Env, _: Context) -> Result<Response> {
         return Response::ok(vless_uri);
     }
 
-    if should_fallback && !fallback_site.is_empty() {
-        let req = Fetch::Url(Url::parse(&fallback_site)?);
-        return req.send().await;
-    }
 
     // ready early data
     let early_data = req.headers().get("sec-websocket-protocol")?;
@@ -98,6 +96,7 @@ mod proxy {
     use base64::{decode_config, URL_SAFE_NO_PAD};
     use tokio::io::{copy_bidirectional, AsyncReadExt, AsyncWriteExt};
     use worker::*;
+    use regex::Regex;
 
     pub fn parse_early_data(data: Option<String>) -> Result<Option<Vec<u8>>> {
         if let Some(data) = data {
@@ -178,19 +177,27 @@ mod proxy {
         match network_type {
             protocol::NETWORK_TYPE_TCP => {
                 // try to connect to remote
-                for target in [vec![remote_addr], proxy_ip].concat() {
-                    match process_tcp_outbound(&mut client_socket, &target, remote_port).await {
-                        Ok(_) => {
-                            // normal closed
-                            return Ok(());
-                        }
+                let proxy_ip_pattern = Regex::new(r"^.+-\d+$").unwrap();
+                let all_targets = [vec![remote_addr], proxy_ip].concat();
+
+                for mut target_addr in all_targets {
+                    let target = target_addr.clone();
+                    let mut target_port = remote_port;
+                    
+                    if proxy_ip_pattern.is_match(&target) {
+                        let proxy_and_port: Vec<&str> = target.split("-").collect();
+
+                        // reassign new proxy address and port
+                        target_addr = proxy_and_port[0].to_string();
+                        target_port = proxy_and_port[1].parse().unwrap_or(443);
+                    }
+
+                    match process_tcp_outbound(&mut client_socket, &target_addr, target_port).await {
+                        Ok(_) => return Ok(()),
                         Err(e) => {
-                            // connection reset
                             if e.kind() != ErrorKind::ConnectionReset {
                                 return Err(e);
                             }
-
-                            // continue to next target
                             continue;
                         }
                     }
@@ -289,7 +296,7 @@ mod proxy {
             let packet = client_socket.read_bytes(length.unwrap() as usize).await?;
 
             // create request
-            let request = Request::new_with_init("https://1.1.1.1/dns-query", &{
+            let request = Request::new_with_init("https://8.8.8.8/dns-query", &{
                 // create request
                 let mut init = RequestInit::new();
                 init.method = Method::Post;

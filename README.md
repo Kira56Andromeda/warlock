@@ -1,6 +1,6 @@
-# workers-tunnel
+# Siren
 
-[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/zhu327/workers-tunnel/tree/main)
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/FoolVPN-ID/Siren/tree/main)
 
 Edge network tunnel implemented using Cloudflare Workers.
 
@@ -27,10 +27,7 @@ Replace the domain `your.domain.workers.dev` in the following configuration with
       "protocol": "socks",
       "sniffing": {
         "enabled": true,
-        "destOverride": [
-          "http",
-          "tls"
-        ]
+        "destOverride": ["http", "tls"]
       },
       "settings": {
         "auth": "noauth"
@@ -82,18 +79,12 @@ Replace the domain `your.domain.workers.dev` in the following configuration with
       {
         "type": "field",
         "outboundTag": "direct",
-        "domain": [
-          "geosite:cn"
-        ]
+        "domain": ["geosite:cn"]
       },
       {
         "type": "field",
         "outboundTag": "direct",
-        "ip": [
-          "geoip:cn",
-          "geoip:private",
-          "geoip:cloudflare"
-        ]
+        "ip": ["geoip:cn", "geoip:private", "geoip:cloudflare"]
       }
     ]
   }
