@@ -1,0 +1,39 @@
+{
+  "log": {
+    "disabled": false,
+    "level": "info",
+    "timestamp": true
+  },
+  "dns": {
+    "servers": [
+      {
+        "tag": "dns-out",
+        "address": "8.8.8.8"
+      }
+    ]
+  },
+  "inbounds": [
+    {
+      "listen_port": 8080,
+      "type": "mixed",
+      "tag": "mixed-in",
+      "set_system_proxy": true
+    }
+  ],
+  "outbounds": [
+    {
+      "type": "vless",
+      "tag": "vless-in",
+      "server": "127.0.0.1",
+      "server_port": 8787,
+      "uuid": "c55ba35f-12f6-436e-a451-4ce982c4ec1c",
+      "transport": {
+        "type": "ws",
+        "path": "/vmess",
+        "headers": {
+          "Host": "127.0.0.1"
+        }
+      }
+    }
+  ]
+}
