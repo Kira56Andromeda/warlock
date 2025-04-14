@@ -10,5 +10,5 @@ enabled = true
 head_sampling_rate = 1
 
 [vars]
-USER_ID = "c55ba35f-12f6-436e-a451-4ce982c4ec1c" # your uuid
+USER_ID = "a4c83509-8187-4d51-afb3-2b9d437ea7fe" # your uuid
 FALLBACK_SITE = "https://example.com" # https://httpbin.org/status/404
